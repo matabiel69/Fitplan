@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FitPlan">
+<title>FitPlan</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#f5f5f7;--card:#fff;--text:#1c1c1e;--muted:#6e6e73;--border:#e5e5ea;--green:#34c759;--red:#ff3b30;--blue:#007aff;--orange:#ff9500;--indigo:#5856d6;--purple:#af52de;--teal:#32ade6}
+@media(prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--text:#fff;--muted:#8e8e93;--border:#38383a}}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+#pin-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+#pin-screen.hidden{display:none}
+.pin-dots{display:flex;gap:16px;margin-bottom:40px}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .15s}
+.pin-dot.filled{background:var(--blue);border-color:var(--blue)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.pin-btn{width:72px;height:72px;border-radius:50%;border:.5px solid var(--border);background:var(--card);font-size:24px;font-weight:500;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pin-btn:active{background:var(--border)}
+.pin-btn.empty{background:transparent;border:none;pointer-events:none}
+
+#app{display:none}
+#app.visible{display:block}
+.screen{display:none;padding:16px;padding-bottom:100px}
+.screen.active{display:block}
+
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:.5px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:10px 4px 6px;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:10px;cursor:pointer}
+nav button.active{color:var(--blue)}
+nav button svg{width:22px;height:22px}
+
+.page-title{font-size:28px;font-weight:700;letter-spacing:-.5px;margin-bottom:20px}
+.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
+.form-label{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:6px;display:block}
+.form-input{width:100%;padding:12px 14px;border-radius:12px;border:.5px solid var(--border);background:var(--bg);color:var(--text);font-size:16px;font-family:inherit;margin-bottom:12px}
+.form-input:focus{outline:none;border-color:var(--blue)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;background:var(--bg);border-radius:10px;padding:2px;gap:2px;margin-bottom:12px}
+.seg button{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-size:14px;font-weight:500;cursor:pointer}
+.seg button.active{background:var(--card);color:var(--text)}
+
+.goal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.goal-card{border:.5px solid var(--border);border-radius:14px;padding:14px;text-align:center;cursor:pointer;background:var(--card);transition:all .15s}
+.goal-card.sel{border-color:var(--blue);background:rgba(0,122,255,.08)}
+.goal-card-icon{font-size:28px;margin-bottom:6px}
+.goal-card-label{font-size:13px;font-weight:500}
+.goal-card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+.diet-chip{display:inline-block;padding:8px 14px;border-radius:99px;border:.5px solid var(--border);background:var(--card);font-size:13px;font-weight:500;cursor:pointer;margin:4px;white-space:nowrap}
+.diet-chip.sel{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.big-btn{width:100%;padding:16px;border-radius:16px;background:var(--blue);color:#fff;border:none;font-size:17px;font-weight:600;cursor:pointer;margin-top:8px}
+.big-btn:disabled{opacity:.4}
+.big-btn.green{background:var(--green)}
+.big-btn.indigo{background:var(--indigo)}
+
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.section-title{font-size:20px;font-weight:700;margin:20px 0 12px;letter-spacing:-.3px}
+.info-card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:10px}
+.info-card-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.info-card-icon{font-size:24px;width:44px;height:44px;background:var(--bg);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.info-card-title{font-size:16px;font-weight:600}
+.info-card-sub{font-size:12px;color:var(--muted)}
+.info-card-body{font-size:14px;line-height:1.6;color:var(--text)}
+.tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;margin:2px}
+.tag.blue{background:rgba(0,122,255,.12);color:#0055cc}
+.tag.green{background:rgba(52,199,89,.12);color:#1a7741}
+.tag.orange{background:rgba(255,149,0,.12);color:#7a4f00}
+.tag.red{background:rgba(255,59,48,.12);color:#c0392b}
+.tag.purple{background:rgba(175,82,222,.12);color:#6e2b9e}
+@media(prefers-color-scheme:dark){.tag.blue{color:#4da3ff}.tag.green{color:#69f0ae}.tag.orange{color:#ffb74d}.tag.red{color:#ff6b6b}.tag.purple{color:#d399ff}}
+
+.day-block{background:var(--card);border-radius:14px;padding:14px;margin-bottom:8px}
+.day-label{font-size:13px;font-weight:600;color:var(--blue);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+.exercise-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border)}
+.exercise-row:last-child{border-bottom:none}
+.ex-icon{font-size:20px;width:36px;height:36px;background:var(--bg);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ex-info{flex:1}
+.ex-name{font-size:14px;font-weight:500}
+.ex-detail{font-size:12px;color:var(--muted)}
+
+.meal-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:.5px solid var(--border)}
+.meal-row:last-child{border-bottom:none}
+.meal-time{font-size:11px;font-weight:600;color:var(--blue);width:60px;flex-shrink:0;text-transform:uppercase}
+.meal-info{flex:1}
+.meal-name{font-size:14px;font-weight:500}
+.meal-detail{font-size:12px;color:var(--muted)}
+.meal-cals{font-size:13px;font-weight:600;color:var(--orange);flex-shrink:0}
+
+.grocery-section{margin-bottom:16px}
+.grocery-category{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.grocery-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--border)}
+.grocery-item:last-child{border-bottom:none}
+.grocery-check{width:22px;height:22px;border-radius:6px;border:.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:12px}
+.grocery-check.done{background:var(--green);border-color:var(--green);color:#fff}
+.grocery-name{flex:1;font-size:14px}
+.grocery-name.done{text-decoration:line-through;color:var(--muted)}
+.grocery-qty{font-size:13px;color:var(--muted);flex-shrink:0}
+
+.alert-card{border-radius:14px;padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
+.alert-card.warn{background:rgba(255,149,0,.1)}
+.alert-card.info{background:rgba(0,122,255,.1)}
+.alert-card.tip{background:rgba(52,199,89,.1)}
+@media(prefers-color-scheme:dark){.alert-card.warn{background:rgba(255,149,0,.15)}.alert-card.info{background:rgba(0,122,255,.15)}.alert-card.tip{background:rgba(52,199,89,.15)}}
+.alert-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.alert-text{font-size:13px;line-height:1.5}
+.alert-title{font-weight:600;margin-bottom:2px}
+
+.time-badge{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:14px;padding:14px;margin-bottom:8px}
+.time-icon{font-size:32px}
+.time-info{flex:1}
+.time-label{font-size:16px;font-weight:600}
+.time-detail{font-size:13px;color:var(--muted);line-height:1.4;margin-top:2px}
+.time-badge.recommended{border:2px solid var(--green)}
+
+.cycle-phase{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;scrollbar-width:none}
+.cycle-phase::-webkit-scrollbar{display:none}
+.phase-pill{flex-shrink:0;padding:8px 16px;border-radius:99px;font-size:13px;font-weight:500;border:.5px solid var(--border);background:var(--card);cursor:pointer}
+.phase-pill.sel{background:var(--purple);border-color:var(--purple);color:#fff}
+
+.stat-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:.5px solid var(--border)}
+.stat-row:last-child{border-bottom:none}
+.stat-label{font-size:14px;color:var(--muted)}
+.stat-val{font-size:14px;font-weight:600}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:24px 24px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-height:92vh;overflow-y:auto}
+.modal-title{font-size:20px;font-weight:700;margin-bottom:16px}
+.btn-row{display:flex;gap:10px;margin-top:16px}
+.btn{flex:1;padding:14px;border-radius:14px;border:none;font-size:16px;font-weight:600;cursor:pointer}
+.btn-cancel{background:var(--bg);color:var(--muted)}
+.btn-save{background:var(--blue);color:#fff}
+.sec-badge{display:flex;align-items:center;gap:8px;background:rgba(52,199,89,.1);border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#1a7741}
+@media(prefers-color-scheme:dark){.sec-badge{color:#69f0ae;background:rgba(52,199,89,.15)}}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:14px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="pin-screen">
+  <div style="font-size:48px;margin-bottom:16px">💪</div>
+  <div style="font-size:22px;font-weight:700;margin-bottom:6px" id="pin-title">Enter your PIN</div>
+  <div style="font-size:14px;color:var(--muted);margin-bottom:40px;text-align:center" id="pin-sub">Your fitness data is protected</div>
+  <div class="pin-dots"><div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div><div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div></div>
+  <div class="pin-pad">
+    <button class="pin-btn" onclick="pinInput('1')">1</button><button class="pin-btn" onclick="pinInput('2')">2</button><button class="pin-btn" onclick="pinInput('3')">3</button>
+    <button class="pin-btn" onclick="pinInput('4')">4</button><button class="pin-btn" onclick="pinInput('5')">5</button><button class="pin-btn" onclick="pinInput('6')">6</button>
+    <button class="pin-btn" onclick="pinInput('7')">7</button><button class="pin-btn" onclick="pinInput('8')">8</button><button class="pin-btn" onclick="pinInput('9')">9</button>
+    <button class="pin-btn empty"></button><button class="pin-btn" onclick="pinInput('0')">0</button><button class="pin-btn" onclick="pinDelete()" style="font-size:18px;color:var(--muted)">⌫</button>
+  </div>
+  <div style="font-size:13px;color:var(--red);margin-top:16px;min-height:18px;text-align:center" id="pin-error"></div>
+  <button id="pin-forgot" onclick="forgotPin()" style="display:none;margin-top:20px;background:none;border:none;color:var(--blue);font-size:13px;cursor:pointer">Forgot PIN? Reset app data</button>
+</div>
+
+<div id="app">
+
+<!-- PROFILE SETUP -->
+<div id="screen-profile" class="screen active">
+  <div class="page-title">My Profile</div>
+  <div class="sec-badge">🔐 All data encrypted with AES-256 on your device</div>
+
+  <div class="card">
+    <div class="card-title">About you</div>
+    <label class="form-label">Biological sex</label>
+    <div class="seg" id="sex-seg">
+      <button class="active" onclick="setSex('male',this)">Male</button>
+      <button onclick="setSex('female',this)">Female</button>
+    </div>
+    <div class="form-row">
+      <div><label class="form-label">Age</label><input class="form-input" id="p-age" type="number" placeholder="34" min="13" max="100" inputmode="numeric"></div>
+      <div><label class="form-label">Weight (lbs)</label><input class="form-input" id="p-weight" type="number" placeholder="180" inputmode="decimal"></div>
+    </div>
+    <div class="form-row">
+      <div><label class="form-label">Height (ft)</label><input class="form-input" id="p-height-ft" type="number" placeholder="5" min="3" max="8" inputmode="numeric"></div>
+      <div><label class="form-label">Height (in)</label><input class="form-input" id="p-height-in" type="number" placeholder="11" min="0" max="11" inputmode="numeric"></div>
+    </div>
+    <label class="form-label">Activity level</label>
+    <select class="form-input" id="p-activity">
+      <option value="sedentary">Sedentary (desk job, little exercise)</option>
+      <option value="light">Lightly active (1-3 days/week)</option>
+      <option value="moderate" selected>Moderately active (3-5 days/week)</option>
+      <option value="active">Very active (6-7 days/week)</option>
+      <option value="athlete">Athlete (2x/day training)</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Your goal</div>
+    <div class="goal-grid">
+      <div class="goal-card sel" onclick="setGoal('lose',this)" id="goal-lose"><div class="goal-card-icon">🔥</div><div class="goal-card-label">Lose weight</div><div class="goal-card-sub">Burn fat</div></div>
+      <div class="goal-card" onclick="setGoal('healthy',this)" id="goal-healthy"><div class="goal-card-icon">💚</div><div class="goal-card-label">Be healthy</div><div class="goal-card-sub">Feel great</div></div>
+      <div class="goal-card" onclick="setGoal('muscle',this)" id="goal-muscle"><div class="goal-card-icon">💪</div><div class="goal-card-label">Build muscle</div><div class="goal-card-sub">Get big & strong</div></div>
+      <div class="goal-card" onclick="setGoal('endurance',this)" id="goal-endurance"><div class="goal-card-icon">🏃</div><div class="goal-card-label">Endurance</div><div class="goal-card-sub">Cardio & stamina</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Diet preference</div>
+    <div id="diet-chips" style="margin-bottom:4px"></div>
+  </div>
+
+  <div id="cycle-section" style="display:none">
+    <div class="card">
+      <div class="card-title">Cycle phase (optional)</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Helps tailor workouts and nutrition to your cycle.</p>
+      <div class="cycle-phase" id="cycle-chips"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Anthropic API key (optional)</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px">For AI-powered personalized plans. Without it, smart defaults are used. Encrypted and stored locally.</p>
+    <input class="form-input" id="api-key-input" type="password" placeholder="sk-ant-...">
+    <div id="key-status" style="font-size:13px;color:var(--muted);margin-top:-6px;margin-bottom:8px"></div>
+  </div>
+
+  <button class="big-btn" onclick="generatePlan()">Generate my plan ✨</button>
+  <div style="height:16px"></div>
+</div>
+
+<!-- WORKOUT -->
+<div id="screen-workout" class="screen">
+  <div class="page-title">Workout Plan</div>
+  <div id="workout-time-section"></div>
+  <div id="workout-content"><div class="empty-state"><div class="empty-icon">🏋️</div><div class="empty-title">No plan yet</div><div class="empty-sub">Fill in your profile and tap Generate</div></div></div>
+</div>
+
+<!-- NUTRITION -->
+<div id="screen-nutrition" class="screen">
+  <div class="page-title">Meal Plan</div>
+  <div id="nutrition-stats"></div>
+  <div id="nutrition-content"><div class="empty-state"><div class="empty-icon">🥗</div><div class="empty-title">No plan yet</div><div class="empty-sub">Fill in your profile and tap Generate</div></div></div>
+</div>
+
+<!-- GROCERY -->
+<div id="screen-grocery" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div class="page-title" style="margin-bottom:0">Grocery List</div>
+    <button onclick="clearChecked()" style="background:none;border:none;color:var(--blue);font-size:14px;cursor:pointer">Clear done</button>
+  </div>
+  <div id="grocery-content"><div class="empty-state"><div class="empty-icon">🛒</div><div class="empty-title">No list yet</div><div class="empty-sub">Generate your plan first</div></div></div>
+</div>
+
+<!-- HEALTH -->
+<div id="screen-health" class="screen">
+  <div class="page-title">Health Insights</div>
+  <div id="health-content"><div class="empty-state"><div class="empty-icon">🩺</div><div class="empty-title">No insights yet</div><div class="empty-sub">Generate your plan first</div></div></div>
+</div>
+
+<nav>
+  <button class="active" onclick="showScreen('profile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Profile</button>
+  <button onclick="showScreen('workout',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4v16M18 4v16M4 12h4M16 12h4M8 8h8M8 16h8"/></svg>Workout</button>
+  <button onclick="showScreen('nutrition',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/><circle cx="12" cy="9" r="2.5"/></svg>Meals</button>
+  <button onclick="showScreen('grocery',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>Grocery</button>
+  <button onclick="showScreen('health',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Health</button>
+</nav>
+
+</div>
+
+<script>
+const DATA_KEY='fitplan_enc_v1',API_KEY_STORE='fitplan_api_enc',ENC_KEY_NAME='fitplan_enc_key',PIN_HASH_KEY='fitplan_pin_hash';
+
+async function getOrCreateEncKey(){
+  const s=localStorage.getItem(ENC_KEY_NAME);
+  if(s){const r=Uint8Array.from(atob(s),c=>c.charCodeAt(0));return crypto.subtle.importKey('raw',r,{name:'AES-GCM'},false,['encrypt','decrypt'])}
+  const k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
+  const e=await crypto.subtle.exportKey('raw',k);
+  localStorage.setItem(ENC_KEY_NAME,btoa(String.fromCharCode(...new Uint8Array(e))));
+  return k;
+}
+async function encryptVal(obj){
+  const k=await getOrCreateEncKey(),iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(JSON.stringify(obj)));
+  const c=new Uint8Array(12+enc.byteLength);c.set(iv);c.set(new Uint8Array(enc),12);
+  return btoa(String.fromCharCode(...c));
+}
+async function decryptVal(b64){
+  try{const k=await getOrCreateEncKey(),c=Uint8Array.from(atob(b64),x=>x.charCodeAt(0));const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:c.slice(0,12)},k,c.slice(12));return JSON.parse(new TextDecoder().decode(dec))}catch{return null}
+}
+async function saveEnc(key,obj){localStorage.setItem(key,await encryptVal(obj))}
+async function loadEnc(key){const r=localStorage.getItem(key);return r?await decryptVal(r):null}
+
+let pinBuf='',pinMode='enter',pinFirst='',appUnlocked=false;
+async function hashPin(p){const e=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(p+'fit_s4lt_2024'));return btoa(String.fromCharCode(...new Uint8Array(e)))}
+function initPin(){if(!localStorage.getItem(PIN_HASH_KEY)){pinMode='setup';document.getElementById('pin-title').textContent='Create a PIN';document.getElementById('pin-sub').textContent='Protect your fitness data'}else{document.getElementById('pin-forgot').style.display='block'}}
+function pinInput(d){if(pinBuf.length>=4)return;pinBuf+=d;updateDots();if(pinBuf.length===4)setTimeout(processPinSubmit,120)}
+function pinDelete(){pinBuf=pinBuf.slice(0,-1);updateDots();document.getElementById('pin-error').textContent=''}
+function updateDots(s=''){for(let i=0;i<4;i++){const d=document.getElementById('d'+i);d.className='pin-dot';if(s==='error')d.classList.add('error');else if(i<pinBuf.length)d.classList.add('filled')}}
+async function processPinSubmit(){
+  const h=await hashPin(pinBuf);
+  if(pinMode==='setup'){pinFirst=pinBuf;pinBuf='';updateDots();document.getElementById('pin-title').textContent='Confirm PIN';document.getElementById('pin-sub').textContent='Enter again to confirm';pinMode='setup2'}
+  else if(pinMode==='setup2'){if(pinBuf!==pinFirst){showPinErr("PINs don't match.");pinMode='setup';pinFirst='';document.getElementById('pin-title').textContent='Create a PIN';document.getElementById('pin-sub').textContent='Choose a 4-digit PIN'}else{localStorage.setItem(PIN_HASH_KEY,h);unlockApp()}}
+  else if(pinMode==='enter'){if(h===localStorage.getItem(PIN_HASH_KEY))unlockApp();else showPinErr('Incorrect PIN.')}
+}
+function showPinErr(m){updateDots('error');document.getElementById('pin-error').textContent=m;setTimeout(()=>{pinBuf='';updateDots()},600)}
+function unlockApp(){appUnlocked=true;pinBuf='';document.getElementById('pin-screen').classList.add('hidden');document.getElementById('app').classList.add('visible');initApp()}
+function forgotPin(){if(confirm('Delete ALL data and reset PIN?')){localStorage.clear();location.reload()}}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&appUnlocked){appUnlocked=false;pinBuf='';pinMode='enter';updateDots();document.getElementById('pin-error').textContent='';document.getElementById('pin-title').textContent='Enter your PIN';document.getElementById('pin-sub').textContent='Your fitness data is protected';document.getElementById('pin-screen').classList.remove('hidden');document.getElementById('app').classList.remove('visible')}});
+
+const DIETS=['Standard','Keto','Vegan','Vegetarian','Paleo','Mediterranean','Carnivore','Gluten-free','Dairy-free','Intermittent Fasting'];
+const CYCLES=['Menstrual (Days 1-5)','Follicular (Days 6-13)','Ovulation (Days 14-16)','Luteal (Days 17-28)'];
+const CYCLE_INFO={
+  'Menstrual (Days 1-5)':{workout:'Light movement — yoga, walking, stretching. Honor rest.',nutrition:'Iron-rich foods, anti-inflammatory. Dark leafy greens, salmon, nuts.',energy:'Low energy is normal. Be gentle with yourself.'},
+  'Follicular (Days 6-13)':{workout:'Ramp up intensity. Great time for strength training and HIIT.',nutrition:'Lighter meals, lean protein, complex carbs for energy.',energy:'Rising estrogen boosts motivation and strength.'},
+  'Ovulation (Days 14-16)':{workout:'Peak performance window. Push hard — sprints, heavy lifts, competitions.',nutrition:'High protein, antioxidants. Berries, leafy greens, eggs.',energy:'Highest energy and coordination. Use it!'},
+  'Luteal (Days 17-28)':{workout:'Moderate — reduce intensity as the phase progresses. Pilates, swimming.',nutrition:'Complex carbs to stabilize mood, magnesium-rich foods. Dark chocolate ok!',energy:'Progesterone rises. Focus on quality over quantity.'}
+};
+
+let profile={sex:'male',age:'',weight:'',heightFt:'',heightIn:'',activity:'moderate',goal:'lose',diet:'Standard',cyclePhase:''};
+let plan={workout:null,nutrition:null,grocery:null,health:null};
+let groceryChecked={};
+
+function initApp(){
+  buildDietChips();buildCycleChips();
+  loadEnc(DATA_KEY).then(d=>{
+    if(d){profile=d.profile||profile;plan=d.plan||plan;groceryChecked=d.groceryChecked||{};applyProfileToUI();renderAllPlan()}
+  });
+  loadEnc(API_KEY_STORE).then(k=>{
+    if(k){document.getElementById('api-key-input').value=k;document.getElementById('key-status').textContent='✓ API key loaded';document.getElementById('key-status').style.color='var(--green)'}
+  });
+}
+
+function buildDietChips(){
+  document.getElementById('diet-chips').innerHTML=DIETS.map(d=>`<span class="diet-chip${d===profile.diet?' sel':''}" onclick="setDiet('${d}',this)">${d}</span>`).join('');
+}
+function buildCycleChips(){
+  document.getElementById('cycle-chips').innerHTML=CYCLES.map(c=>`<span class="phase-pill${c===profile.cyclePhase?' sel':''}" onclick="setCycle('${c}',this)">${c}</span>`).join('');
+}
+function applyProfileToUI(){
+  if(profile.age)document.getElementById('p-age').value=profile.age;
+  if(profile.weight)document.getElementById('p-weight').value=profile.weight;
+  if(profile.heightFt)document.getElementById('p-height-ft').value=profile.heightFt;
+  if(profile.heightIn)document.getElementById('p-height-in').value=profile.heightIn;
+  document.getElementById('p-activity').value=profile.activity;
+  document.querySelectorAll('#sex-seg button').forEach((b,i)=>{b.classList.toggle('active',i===(profile.sex==='male'?0:1))});
+  document.querySelectorAll('.goal-card').forEach(c=>c.classList.remove('sel'));
+  const gc=document.getElementById('goal-'+profile.goal);if(gc)gc.classList.add('sel');
+  document.querySelectorAll('.diet-chip').forEach(c=>{c.classList.toggle('sel',c.textContent===profile.diet)});
+  document.getElementById('cycle-section').style.display=profile.sex==='female'?'block':'none';
+  document.querySelectorAll('.phase-pill').forEach(c=>{c.classList.toggle('sel',c.textContent===profile.cyclePhase)});
+}
+
+function setSex(s,btn){profile.sex=s;document.querySelectorAll('#sex-seg button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.getElementById('cycle-section').style.display=s==='female'?'block':'none'}
+function setGoal(g,el){profile.goal=g;document.querySelectorAll('.goal-card').forEach(c=>c.classList.remove('sel'));el.classList.add('sel')}
+function setDiet(d,el){profile.diet=d;document.querySelectorAll('.diet-chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel')}
+function setCycle(c,el){profile.cyclePhase=profile.cyclePhase===c?'':c;document.querySelectorAll('.phase-pill').forEach(p=>p.classList.remove('sel'));if(profile.cyclePhase)el.classList.add('sel')}
+
+function showScreen(name,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+}
+
+function calcBMR(){
+  const w=parseFloat(profile.weight)*0.453592,h=(parseFloat(profile.heightFt)*30.48)+(parseFloat(profile.heightIn)*2.54),a=parseInt(profile.age);
+  if(isNaN(w)||isNaN(h)||isNaN(a))return 2000;
+  return profile.sex==='male'?Math.round(88.362+(13.397*w)+(4.799*h)-(5.677*a)):Math.round(447.593+(9.247*w)+(3.098*h)-(4.330*a));
+}
+function calcTDEE(){
+  const bmr=calcBMR(),mult={sedentary:1.2,light:1.375,moderate:1.55,active:1.725,athlete:1.9};
+  return Math.round(bmr*(mult[profile.activity]||1.55));
+}
+function calcTargetCals(){
+  const tdee=calcTDEE();
+  if(profile.goal==='lose')return tdee-500;
+  if(profile.goal==='muscle')return tdee+300;
+  return tdee;
+}
+function bmi(){
+  const w=parseFloat(profile.weight),h=(parseFloat(profile.heightFt)*12)+parseFloat(profile.heightIn);
+  if(isNaN(w)||isNaN(h)||h===0)return null;
+  return((w/(h*h))*703).toFixed(1);
+}
+
+async function generatePlan(){
+  profile.age=document.getElementById('p-age').value;
+  profile.weight=document.getElementById('p-weight').value;
+  profile.heightFt=document.getElementById('p-height-ft').value;
+  profile.heightIn=document.getElementById('p-height-in').value;
+  profile.activity=document.getElementById('p-activity').value;
+  if(!profile.age||!profile.weight||!profile.heightFt){alert('Please fill in age, weight, and height.');return}
+  const apiKey=document.getElementById('api-key-input').value.trim();
+  if(apiKey){await saveEnc(API_KEY_STORE,apiKey);document.getElementById('key-status').textContent='✓ Key saved';document.getElementById('key-status').style.color='var(--green)'}
+
+  const btn=document.querySelector('.big-btn');
+  btn.innerHTML='<span class="spinner"></span>Generating your plan…';btn.disabled=true;
+
+  try{
+    if(apiKey){await generateWithAI(apiKey)}
+    else{generateDefaults()}
+    await saveEnc(DATA_KEY,{profile,plan,groceryChecked});
+    renderAllPlan();
+    showScreen('workout',document.querySelector('nav button:nth-child(2)'));
+  }catch(e){
+    console.error(e);
+    generateDefaults();
+    await saveEnc(DATA_KEY,{profile,plan,groceryChecked});
+    renderAllPlan();
+    showScreen('workout',document.querySelector('nav button:nth-child(2)'));
+  }
+  btn.innerHTML='Generate my plan ✨';btn.disabled=false;
+}
+
+async function generateWithAI(apiKey){
+  const tdee=calcTDEE(),target=calcTargetCals(),bmiVal=bmi();
+  const cycleNote=profile.sex==='female'&&profile.cyclePhase?`Current cycle phase: ${profile.cyclePhase}. ${CYCLE_INFO[profile.cyclePhase]?.workout||''}`:'' ;
+  const prompt=`You are an expert personal trainer, nutritionist, and health coach. Create a highly personalized fitness and nutrition plan.
+
+User profile:
+- Sex: ${profile.sex}
+- Age: ${profile.age}
+- Weight: ${profile.weight} lbs
+- Height: ${profile.heightFt}ft ${profile.heightIn}in
+- BMI: ${bmiVal}
+- Activity level: ${profile.activity}
+- Goal: ${profile.goal}
+- Diet preference: ${profile.diet}
+- TDEE: ${tdee} calories/day
+- Target calories: ${target}/day
+${cycleNote}
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+{
+  "workout": {
+    "weeklySchedule": [
+      {"day":"Monday","focus":"Push","exercises":[{"name":"Bench Press","sets":"3","reps":"8-10","rest":"90s","icon":"🏋️","tip":"Keep shoulders retracted"}]},
+      {"day":"Tuesday","focus":"Rest/Active Recovery","exercises":[]},
+      ...7 days total
+    ],
+    "bestTime": {"recommended":"Morning","reason":"Brief reason based on age/sex/goal","options":[{"time":"Morning 6-8am","pros":"Boosts metabolism, consistent habit","cons":"Requires earlier wake"},{"time":"Evening 5-7pm","pros":"Peak strength, warmer muscles","cons":"May affect sleep"}]},
+    "weeklyVolume": "e.g. 4 days training, ~45 min/session"
+  },
+  "nutrition": {
+    "dailyTargets": {"calories":${target},"protein":150,"carbs":180,"fat":65},
+    "mealPlan": [
+      {"time":"Breakfast","name":"Meal name","description":"Brief description","calories":450,"protein":35,"tip":"Optional tip"},
+      {"time":"Mid-morning snack","name":"...","description":"...","calories":200,"protein":15,"tip":""},
+      {"time":"Lunch","name":"...","description":"...","calories":550,"protein":40,"tip":""},
+      {"time":"Afternoon snack","name":"...","description":"...","calories":200,"protein":15,"tip":""},
+      {"time":"Dinner","name":"...","description":"...","calories":600,"protein":45,"tip":""}
+    ],
+    "hydration": "e.g. 3.5 liters/day",
+    "supplements": ["Supplement 1 — reason","Supplement 2 — reason"]
+  },
+  "grocery": {
+    "Proteins": [{"name":"Chicken breast","qty":"2 lbs"},{"name":"Eggs","qty":"1 dozen"}],
+    "Vegetables": [{"name":"Spinach","qty":"1 bag"},{"name":"Broccoli","qty":"2 heads"}],
+    "Fruits": [{"name":"Bananas","qty":"1 bunch"}],
+    "Grains & Carbs": [{"name":"Brown rice","qty":"2 lbs"}],
+    "Dairy & Alternatives": [{"name":"Greek yogurt","qty":"4 cups"}],
+    "Healthy Fats": [{"name":"Avocados","qty":"4"},{"name":"Olive oil","qty":"1 bottle"}],
+    "Pantry": [{"name":"Protein powder","qty":"1 tub"}]
+  },
+  "health": {
+    "watchouts": [
+      {"title":"Title","body":"Specific health consideration for this person's age/sex/goal","type":"warn"},
+      {"title":"Title","body":"...","type":"info"},
+      {"title":"Title","body":"...","type":"tip"}
+    ],
+    "keyMetrics": [
+      {"label":"BMI","value":"${bmiVal}","note":"Brief interpretation"},
+      {"label":"Daily calories","value":"${target}","note":"To reach your goal"},
+      {"label":"Protein target","value":"g/day","note":"Brief note"}
+    ],
+    "ageSpecific": "2-3 sentences of age/sex specific health advice for this person",
+    "cycleAdvice": ${profile.sex==='female'&&profile.cyclePhase?`"Specific advice for ${profile.cyclePhase} phase"`:`null`}
+  }
+}`;
+
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'API error')}
+  const res=await r.json(),raw=res.content.map(c=>c.text||'').join('');
+  const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+  plan.workout=parsed.workout;plan.nutrition=parsed.nutrition;plan.grocery=parsed.grocery;plan.health=parsed.health;
+}
+
+function generateDefaults(){
+  const target=calcTargetCals(),tdee=calcTDEE(),bmiVal=bmi();
+  const age=parseInt(profile.age),isFemale=profile.sex==='female';
+
+  const workoutDays={
+    lose:[{day:'Monday',focus:'Full Body Strength',exercises:[{name:'Squats',sets:'3',reps:'12',rest:'60s',icon:'🦵',tip:'Keep chest up, knees tracking toes'},{name:'Push-ups',sets:'3',reps:'15',rest:'45s',icon:'💪',tip:'Full range of motion'},{name:'Dumbbell rows',sets:'3',reps:'12',rest:'60s',icon:'🏋️',tip:'Squeeze shoulder blade at top'},{name:'Plank',sets:'3',reps:'30-45s',rest:'30s',icon:'🧘',tip:'Keep hips level'}]},{day:'Tuesday',focus:'Cardio',exercises:[{name:'Brisk walk or jog',sets:'1',reps:'30 min',rest:'-',icon:'🏃',tip:'Keep heart rate at 65-75% max'},{name:'Jump rope',sets:'4',reps:'2 min',rest:'1 min',icon:'🪢',tip:'Great calorie burner'}]},{day:'Wednesday',focus:'Rest / Active Recovery',exercises:[]},{day:'Thursday',focus:'Lower Body',exercises:[{name:'Lunges',sets:'3',reps:'10 each leg',rest:'60s',icon:'🦵',tip:'Step wide enough to hit glutes'},{name:'Glute bridges',sets:'3',reps:'15',rest:'45s',icon:'🏋️',tip:'Squeeze at the top'},{name:'Calf raises',sets:'3',reps:'20',rest:'30s',icon:'👟',tip:'Slow and controlled'},{name:'Mountain climbers',sets:'3',reps:'30s',rest:'30s',icon:'🧗',tip:'Keep core tight'}]},{day:'Friday',focus:'Upper Body + Core',exercises:[{name:'Dumbbell shoulder press',sets:'3',reps:'12',rest:'60s',icon:'💪',tip:'Don\'t arch lower back'},{name:'Bicep curls',sets:'3',reps:'12',rest:'45s',icon:'💪',tip:'Slow on the way down'},{name:'Tricep dips',sets:'3',reps:'12',rest:'45s',icon:'🏋️',tip:'Keep elbows close'},{name:'Russian twists',sets:'3',reps:'20',rest:'30s',icon:'🧘',tip:'Add weight as you progress'}]},{day:'Saturday',focus:'Cardio / Fun Activity',exercises:[{name:'Bike ride, swim, or hike',sets:'1',reps:'45 min',rest:'-',icon:'🚴',tip:'Do something you enjoy'},{name:'Stretching',sets:'1',reps:'10 min',rest:'-',icon:'🧘',tip:'Focus on tight areas'}]},{day:'Sunday',focus:'Rest',exercises:[]}],
+    muscle:[{day:'Monday',focus:'Chest & Triceps',exercises:[{name:'Bench Press',sets:'4',reps:'6-8',rest:'2 min',icon:'🏋️',tip:'Full range, controlled descent'},{name:'Incline Dumbbell Press',sets:'3',reps:'8-10',rest:'90s',icon:'💪',tip:'Feel the stretch at bottom'},{name:'Cable flyes',sets:'3',reps:'12',rest:'60s',icon:'💪',tip:'Squeeze at peak contraction'},{name:'Tricep pushdowns',sets:'3',reps:'12',rest:'60s',icon:'💪',tip:'Keep elbows pinned'}]},{day:'Tuesday',focus:'Back & Biceps',exercises:[{name:'Deadlifts',sets:'4',reps:'5',rest:'3 min',icon:'🏋️',tip:'Biggest compound movement'},{name:'Pull-ups',sets:'4',reps:'6-8',rest:'2 min',icon:'🧗',tip:'Full hang at bottom'},{name:'Barbell rows',sets:'3',reps:'8',rest:'90s',icon:'🏋️',tip:'Pull to lower chest'},{name:'Hammer curls',sets:'3',reps:'10',rest:'60s',icon:'💪',tip:'Don\'t swing elbows'}]},{day:'Wednesday',focus:'Rest / Light Cardio',exercises:[{name:'15 min walk',sets:'1',reps:'15 min',rest:'-',icon:'🚶',tip:'Active recovery, stay mobile'}]},{day:'Thursday',focus:'Legs',exercises:[{name:'Barbell squats',sets:'4',reps:'6-8',rest:'2-3 min',icon:'🦵',tip:'King of all exercises'},{name:'Romanian deadlift',sets:'3',reps:'10',rest:'90s',icon:'🏋️',tip:'Feel hamstring stretch'},{name:'Leg press',sets:'3',reps:'10-12',rest:'90s',icon:'🦵',tip:'Full range of motion'},{name:'Leg curls',sets:'3',reps:'12',rest:'60s',icon:'🦵',tip:'Slow and controlled'}]},{day:'Friday',focus:'Shoulders & Arms',exercises:[{name:'Overhead press',sets:'4',reps:'8',rest:'2 min',icon:'💪',tip:'Brace core throughout'},{name:'Lateral raises',sets:'3',reps:'15',rest:'60s',icon:'💪',tip:'Slight bend in elbow'},{name:'Barbell curls',sets:'3',reps:'10',rest:'60s',icon:'💪',tip:'Full supination at top'},{name:'Skull crushers',sets:'3',reps:'10',rest:'60s',icon:'💪',tip:'Keep elbows pointing up'}]},{day:'Saturday',focus:'Weak Point Training / Cardio',exercises:[{name:'Your weakest body part',sets:'3',reps:'10-12',rest:'60s',icon:'🎯',tip:'Address imbalances now'},{name:'20 min moderate cardio',sets:'1',reps:'20 min',rest:'-',icon:'🏃',tip:'Protects heart health while bulking'}]},{day:'Sunday',focus:'Rest',exercises:[]}],
+    healthy:[{day:'Monday',focus:'Full Body Movement',exercises:[{name:'Bodyweight squats',sets:'3',reps:'15',rest:'45s',icon:'🦵',tip:'Great for joint health'},{name:'Push-ups',sets:'3',reps:'10-15',rest:'45s',icon:'💪',tip:'Modify on knees if needed'},{name:'Walking lunges',sets:'2',reps:'10 each',rest:'45s',icon:'🦵',tip:'Focus on balance'},{name:'Bird-dog',sets:'3',reps:'10 each side',rest:'30s',icon:'🧘',tip:'Core stability essential'}]},{day:'Tuesday',focus:'Cardio & Flexibility',exercises:[{name:'30 min brisk walk',sets:'1',reps:'30 min',rest:'-',icon:'🚶',tip:'Aim for 10,000 steps/day'},{name:'Yoga or stretching',sets:'1',reps:'20 min',rest:'-',icon:'🧘',tip:'Improves mobility and reduces stress'}]},{day:'Wednesday',focus:'Rest',exercises:[]},{day:'Thursday',focus:'Strength & Stability',exercises:[{name:'Dumbbell rows',sets:'3',reps:'12',rest:'60s',icon:'🏋️',tip:'Great posture builder'},{name:'Glute bridges',sets:'3',reps:'15',rest:'45s',icon:'🏋️',tip:'Protects lower back'},{name:'Side planks',sets:'2',reps:'30s each',rest:'30s',icon:'🧘',tip:'Build lateral core strength'},{name:'Step-ups',sets:'3',reps:'10 each',rest:'45s',icon:'🦵',tip:'Use a staircase'}]},{day:'Friday',focus:'Cardio',exercises:[{name:'Swimming, cycling, or jog',sets:'1',reps:'30-40 min',rest:'-',icon:'🏊',tip:'Low impact options great for joints'},{name:'Cool-down stretch',sets:'1',reps:'10 min',rest:'-',icon:'🧘',tip:'Never skip this'}]},{day:'Saturday',focus:'Active Fun',exercises:[{name:'Hike, sport, or dance',sets:'1',reps:'60 min',rest:'-',icon:'🌲',tip:'Movement doesn\'t have to be gym'},{name:'Foam rolling',sets:'1',reps:'10 min',rest:'-',icon:'🎯',tip:'Reduces soreness and tightness'}]},{day:'Sunday',focus:'Rest',exercises:[]}],
+    endurance:[{day:'Monday',focus:'Base Run',exercises:[{name:'Easy run',sets:'1',reps:'30-45 min',rest:'-',icon:'🏃',tip:'Conversational pace — 60-65% max HR'},{name:'Core work',sets:'3',reps:'30s each exercise',rest:'30s',icon:'🧘',tip:'Strong core = better running form'}]},{day:'Tuesday',focus:'Cross Training',exercises:[{name:'Cycling or swimming',sets:'1',reps:'45 min',rest:'-',icon:'🚴',tip:'Active recovery, low impact'},{name:'Strength circuit',sets:'3',reps:'12',rest:'45s',icon:'💪',tip:'Injury prevention is key for endurance'}]},{day:'Wednesday',focus:'Intervals',exercises:[{name:'1 min hard / 2 min easy',sets:'8',reps:'3 min each',rest:'5 min warm/cool',icon:'⚡',tip:'These build your VO2max fast'},{name:'Dynamic stretching',sets:'1',reps:'10 min',rest:'-',icon:'🧘',tip:'Before every run'}]},{day:'Thursday',focus:'Rest / Yoga',exercises:[{name:'Restorative yoga',sets:'1',reps:'30 min',rest:'-',icon:'🧘',tip:'Critical for endurance recovery'}]},{day:'Friday',focus:'Tempo Run',exercises:[{name:'Tempo run (comfortably hard)',sets:'1',reps:'20-30 min',rest:'-',icon:'🏃',tip:'Should be able to say a few words only'},{name:'Strides',sets:'4',reps:'20s fast',rest:'40s walk',icon:'⚡',tip:'Improves running economy'}]},{day:'Saturday',focus:'Long Run',exercises:[{name:'Long slow run',sets:'1',reps:'60-90 min',rest:'-',icon:'🏃',tip:'The cornerstone of endurance training'},{name:'Post-run stretch',sets:'1',reps:'15 min',rest:'-',icon:'🧘',tip:'Focus on calves, hamstrings, IT band'}]},{day:'Sunday',focus:'Rest',exercises:[]}]
+  };
+
+  const mealTemplates={
+    Standard:[{time:'Breakfast',name:'Eggs & Oatmeal',description:'3 scrambled eggs, ½ cup oats with berries',calories:Math.round(target*0.25),protein:28,tip:'Great slow-release energy start'},{time:'Mid-morning',name:'Greek yogurt & almonds',description:'1 cup Greek yogurt, 20 almonds',calories:Math.round(target*0.12),protein:18,tip:'Keeps you full until lunch'},{time:'Lunch',name:'Chicken & rice bowl',description:'Grilled chicken breast, brown rice, roasted vegetables',calories:Math.round(target*0.28),protein:42,tip:'Meal prep this in batches'},{time:'Afternoon snack',name:'Apple & peanut butter',description:'1 medium apple, 2 tbsp natural peanut butter',calories:Math.round(target*0.1),protein:7,tip:'Perfect pre-workout fuel'},{time:'Dinner',name:'Salmon & sweet potato',description:'Baked salmon fillet, sweet potato, steamed broccoli',calories:Math.round(target*0.25),protein:40,tip:'Omega-3s are vital for recovery'}],
+    Keto:[{time:'Breakfast',name:'Bacon & eggs',description:'3 eggs, 3 strips bacon, half avocado',calories:Math.round(target*0.25),protein:30,tip:'High fat keeps you in ketosis'},{time:'Mid-morning',name:'Cheese & nuts',description:'1 oz cheddar, 1 oz mixed nuts',calories:Math.round(target*0.12),protein:10,tip:'Keep net carbs under 20g/day'},{time:'Lunch',name:'Lettuce-wrap burger',description:'Ground beef patty, lettuce wrap, cheese, avocado',calories:Math.round(target*0.3),protein:38,tip:'Skip the bun, double the flavor'},{time:'Afternoon snack',name:'Celery & almond butter',description:'Celery sticks with 2 tbsp almond butter',calories:Math.round(target*0.1),protein:6,tip:'Low carb, satisfying fat'},{time:'Dinner',name:'Ribeye & veggies',description:'8oz ribeye steak, sautéed asparagus in butter',calories:Math.round(target*0.23),protein:50,tip:'Fat is your fuel on keto'}],
+    Vegan:[{time:'Breakfast',name:'Tofu scramble',description:'Firm tofu with turmeric, spinach, mushrooms, toast',calories:Math.round(target*0.23),protein:25,tip:'Nutritional yeast adds B12'},{time:'Mid-morning',name:'Smoothie',description:'Pea protein, banana, almond milk, spinach, flaxseed',calories:Math.round(target*0.14),protein:22,tip:'Add chia seeds for omega-3'},{time:'Lunch',name:'Lentil & quinoa bowl',description:'Red lentils, quinoa, roasted chickpeas, tahini dressing',calories:Math.round(target*0.28),protein:30,tip:'Complete protein from quinoa + lentils'},{time:'Afternoon snack',name:'Hummus & veggies',description:'½ cup hummus, cucumber, carrots, bell pepper',calories:Math.round(target*0.1),protein:8,tip:'Great fiber and plant protein'},{time:'Dinner',name:'Tempeh stir-fry',description:'Tempeh, broccoli, edamame, brown rice, tamari',calories:Math.round(target*0.25),protein:35,tip:'Tempeh is the highest protein vegan food'}]
+  };
+
+  const groceryBase={
+    Proteins:profile.diet==='Vegan'?[{name:'Tempeh',qty:'2 packs'},{name:'Firm tofu',qty:'2 blocks'},{name:'Pea protein powder',qty:'1 bag'},{name:'Lentils',qty:'2 lbs'},{name:'Chickpeas (canned)',qty:'4 cans'}]:[{name:'Chicken breast',qty:'3 lbs'},{name:'Salmon fillets',qty:'1 lb'},{name:'Eggs',qty:'2 dozen'},{name:'Greek yogurt',qty:'4 cups'},{name:'Ground beef (lean)',qty:'1 lb'}],
+    Vegetables:[{name:'Spinach / leafy greens',qty:'2 bags'},{name:'Broccoli',qty:'2 heads'},{name:'Sweet potato',qty:'4'},{name:'Bell peppers',qty:'3'},{name:'Zucchini',qty:'2'},{name:'Mushrooms',qty:'1 pack'}],
+    Fruits:[{name:'Bananas',qty:'1 bunch'},{name:'Blueberries',qty:'1 pint'},{name:'Apples',qty:'4'},{name:'Lemons',qty:'4'}],
+    'Grains & Carbs':profile.diet==='Keto'?[{name:'Cauliflower rice',qty:'2 bags'},{name:'Almond flour',qty:'1 bag'}]:[{name:'Brown rice',qty:'2 lbs'},{name:'Oats (rolled)',qty:'1 bag'},{name:'Quinoa',qty:'1 lb'},{name:'Whole wheat bread',qty:'1 loaf'}],
+    'Healthy Fats':[{name:'Avocados',qty:'4'},{name:'Extra virgin olive oil',qty:'1 bottle'},{name:'Almonds / mixed nuts',qty:'1 bag'},{name:'Natural peanut butter',qty:'1 jar'}],
+    Pantry:[{name:'Protein powder',qty:'1 tub'},{name:'Garlic',qty:'1 bulb'},{name:'Canned tomatoes',qty:'2 cans'},{name:'Chicken or veggie broth',qty:'1 carton'}]
+  };
+
+  const watchouts=[];
+  if(age>=40){watchouts.push({title:'Heart health screening',body:`At ${age}, get regular blood pressure and cholesterol checks. Aerobic exercise 150+ min/week significantly reduces cardiovascular risk.`,type:'warn'})}
+  if(age>=50){watchouts.push({title:'Bone density',body:'Strength training is critical after 50 to prevent osteoporosis. Aim for 2-3 weight sessions per week and ensure adequate calcium (1200mg/day) and vitamin D.',type:'warn'})}
+  if(isFemale&&age>=45){watchouts.push({title:'Perimenopause awareness',body:'Hormonal shifts in your 40s can affect metabolism, sleep, and recovery. Higher protein intake and resistance training help preserve muscle mass.',type:'warn'})}
+  if(age>=60){watchouts.push({title:'Balance & fall prevention',body:'Single-leg exercises, yoga, and tai chi become increasingly important. Falls are a leading cause of injury in those 60+.',type:'warn'})}
+  watchouts.push({title:'Sleep is your superpower',body:'7-9 hours of sleep is when your body rebuilds muscle and resets hormones. Poor sleep undermines every workout and diet effort.',type:'info'});
+  watchouts.push({title:'Progressive overload',body:'Gradually increase weight or reps every 1-2 weeks to keep making progress. The body adapts quickly — keep challenging it.',type:'tip'});
+  if(profile.goal==='muscle'){watchouts.push({title:'Protein timing',body:'Eat 20-40g of protein within 2 hours post-workout for optimal muscle protein synthesis. This window matters!',type:'tip'})}
+  if(profile.goal==='lose'){watchouts.push({title:'Don\'t cut too aggressively',body:'A 500 calorie/day deficit is the sweet spot. Larger deficits cause muscle loss. You want to lose fat, not muscle.',type:'warn'})}
+
+  const bestTimeData=getBestTime();
+  plan.workout={weeklySchedule:workoutDays[profile.goal]||workoutDays.healthy,bestTime:bestTimeData,weeklyVolume:'5 days activity, ~45 min/session'};
+  const mealPlan=mealTemplates[profile.diet]||mealTemplates.Standard;
+  plan.nutrition={dailyTargets:{calories:target,protein:Math.round(parseFloat(profile.weight)*0.8),carbs:profile.diet==='Keto'?30:Math.round((target*0.4)/4),fat:Math.round((target*0.3)/9)},mealPlan,hydration:`${(parseFloat(profile.weight)*0.5/8).toFixed(1)} cups (${(parseFloat(profile.weight)*0.033).toFixed(1)} liters) per day`,supplements:profile.diet==='Vegan'?['Vitamin B12 — essential for vegans','Iron — monitor levels regularly','Omega-3 (algae-based DHA/EPA) — brain and heart health']:['Protein powder — fill daily protein gaps','Creatine monohydrate — proven for strength and muscle','Vitamin D3 — especially if limited sun exposure']};
+  plan.grocery=groceryBase;
+  plan.health={watchouts,keyMetrics:[{label:'BMI',value:bmiVal||'--',note:bmiVal?(parseFloat(bmiVal)<18.5?'Underweight':parseFloat(bmiVal)<25?'Healthy range':parseFloat(bmiVal)<30?'Overweight':'Obese'):''},{label:'Daily calories',value:target,note:profile.goal==='lose'?'500 below TDEE to lose ~1lb/week':profile.goal==='muscle'?'300 above TDEE for lean gains':'Maintenance for health & energy'},{label:'Protein target',value:Math.round(parseFloat(profile.weight)*0.8)+'g',note:'~0.8g per lb bodyweight'},{label:'TDEE',value:calcTDEE(),note:'Total daily energy expenditure'}],ageSpecific:getAgeAdvice(),cycleAdvice:isFemale&&profile.cyclePhase?CYCLE_INFO[profile.cyclePhase]:null};
+}
+
+function getBestTime(){
+  const age=parseInt(profile.age),isFemale=profile.sex==='female';
+  let rec='Morning',reason='',options=[];
+  if(profile.goal==='lose'){rec='Morning';reason='Fasted morning cardio can enhance fat oxidation. Morning exercise also establishes a consistent habit.'}
+  else if(profile.goal==='muscle'){rec='Late afternoon';reason='Strength peaks in the late afternoon (3-6pm) when body temperature is highest, improving performance.'}
+  else if(age>=60){rec='Morning';reason='Morning exercise helps with energy and mood throughout the day. Joints are best warmed up by mid-morning.'}
+  else{rec='Morning or afternoon';reason='Both work well. Choose the time you\'ll be most consistent — consistency beats timing.'}
+  if(isFemale&&profile.cyclePhase){
+    if(profile.cyclePhase.includes('Ovulation')){rec='Afternoon';reason='During ovulation your energy and strength peak in the afternoon. Perfect for your best performance.'}
+    if(profile.cyclePhase.includes('Luteal')){rec='Morning';reason='Morning is gentler during the luteal phase when fatigue can increase later in the day.'}
+    if(profile.cyclePhase.includes('Menstrual')){rec='Gentle morning movement';reason='Light morning yoga or walks are ideal during menstruation. Honor your body\'s need for rest.'}
+  }
+  options=[{time:'Morning (6–9am)',pros:'Boosts mood for the day, burns fat in fasted state, builds consistent habit',cons:'Requires earlier wake time, muscles slightly colder'},{time:'Midday (12–2pm)',pros:'Break from work, body temperature rising, social option',cons:'Can feel rushed, hard to fit in work schedule'},{time:'Afternoon (3–6pm)',pros:'Peak strength and reaction time, warmer muscles, best for performance',cons:'Can interfere with evening plans'},{time:'Evening (7–9pm)',pros:'Stress relief after work, good muscle activation',cons:'Can disrupt sleep if too intense'}];
+  return{recommended:rec,reason,options};
+}
+
+function getAgeAdvice(){
+  const age=parseInt(profile.age),isFemale=profile.sex==='female',goal=profile.goal;
+  if(age<25)return`At ${age}, your recovery is fast and your body responds quickly to training. Build strong habits now — they\'ll serve you for life. Focus on learning proper form before adding heavy weight.`;
+  if(age<35)return`At ${age}, you\'re in your physical prime. Push hard but don\'t neglect recovery — 7-8 hours of sleep and good nutrition are what separate good results from great ones. ${goal==='muscle'?'This is your best decade for muscle building.':''}`;
+  if(age<45)return`At ${age}, recovery takes a bit longer than your 20s. Prioritize sleep, manage stress, and be consistent. Strength training becomes increasingly important for maintaining metabolism and muscle mass.`;
+  if(age<55)return`At ${age}, ${isFemale?'hormonal changes may affect energy and body composition. Resistance training is the single best thing you can do.':'testosterone begins a slow decline. Strength training directly combats this.'} Focus on compound movements and adequate protein.`;
+  if(age<65)return`At ${age}, maintaining muscle mass and joint health is critical. Include balance work in every session. Annual check-ups for blood pressure, cholesterol, and blood sugar are essential.`;
+  return`At ${age}, exercise is medicine. Focus on consistency over intensity. Low-impact cardio (walking, swimming, cycling) combined with resistance bands or light weights will transform your quality of life.`;
+}
+
+function renderAllPlan(){if(plan.workout)renderWorkout();if(plan.nutrition)renderNutrition();if(plan.grocery)renderGrocery();if(plan.health)renderHealth()}
+
+function renderWorkout(){
+  const w=plan.workout;
+  if(!w)return;
+  const bt=w.bestTime;
+  let timeHTML=`<div style="margin-bottom:16px"><div style="font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Best time to train</div>`;
+  timeHTML+=`<div class="time-badge recommended"><div class="time-icon">⭐</div><div class="time-info"><div class="time-label">${bt.recommended}</div><div class="time-detail">${bt.reason}</div></div></div>`;
+  if(bt.options){bt.options.forEach(o=>{timeHTML+=`<div class="time-badge"><div style="font-size:20px">${o.time.includes('Morning')?'🌅':o.time.includes('Midday')?'☀️':o.time.includes('Afternoon')?'🌤️':'🌙'}</div><div class="time-info"><div class="time-label" style="font-size:14px">${o.time}</div><div class="time-detail">✓ ${o.pros}<br>✗ ${o.cons}</div></div></div>`})}
+  timeHTML+='</div>';
+  document.getElementById('workout-time-section').innerHTML=timeHTML;
+
+  if(plan.health&&plan.health.cycleAdvice){
+    const ca=plan.health.cycleAdvice;
+    timeHTML+=`<div class="alert-card info" style="margin-bottom:12px"><div class="alert-icon">🌙</div><div class="alert-text"><div class="alert-title">Cycle phase: ${profile.cyclePhase}</div>${ca.workout||''}</div></div>`;
+    document.getElementById('workout-time-section').innerHTML=timeHTML;
+  }
+
+  let html=`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${w.weeklyVolume||''}</div>`;
+  w.weeklySchedule.forEach(day=>{
+    html+=`<div class="day-block"><div class="day-label">${day.day}</div><div style="font-size:14px;font-weight:600;margin-bottom:${day.exercises.length?'10px':'0'}">${day.focus}</div>`;
+    day.exercises.forEach(ex=>{html+=`<div class="exercise-row"><div class="ex-icon">${ex.icon||'💪'}</div><div class="ex-info"><div class="ex-name">${ex.name}</div><div class="ex-detail">${ex.sets} sets × ${ex.reps} · Rest ${ex.rest}${ex.tip?` · 💡 ${ex.tip}`:''}</div></div></div>`});
+    html+='</div>';
+  });
+  document.getElementById('workout-content').innerHTML=html;
+}
+
+function renderNutrition(){
+  const n=plan.nutrition;if(!n)return;
+  const dt=n.dailyTargets;
+  document.getElementById('nutrition-stats').innerHTML=`<div class="summary-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:16px;overflow:hidden;margin-bottom:12px"><div style="background:var(--card);padding:12px 6px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Calories</div><div style="font-size:16px;font-weight:700;color:var(--orange)">${dt.calories}</div></div><div style="background:var(--card);padding:12px 6px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Protein</div><div style="font-size:16px;font-weight:700;color:var(--blue)">${dt.protein}g</div></div><div style="background:var(--card);padding:12px 6px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Carbs</div><div style="font-size:16px;font-weight:700;color:var(--green)">${dt.carbs}g</div></div><div style="background:var(--card);padding:12px 6px;text-align:center"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">Fat</div><div style="font-size:16px;font-weight:700;color:var(--purple)">${dt.fat}g</div></div></div>`;
+
+  if(plan.health&&plan.health.cycleAdvice&&plan.health.cycleAdvice.nutrition){
+    document.getElementById('nutrition-stats').innerHTML+=`<div class="alert-card info" style="margin-bottom:12px"><div class="alert-icon">🌙</div><div class="alert-text"><div class="alert-title">Cycle nutrition tip</div>${plan.health.cycleAdvice.nutrition}</div></div>`;
+  }
+
+  let html='<div class="card"><div class="card-title">Daily meal plan</div>';
+  n.mealPlan.forEach(m=>{html+=`<div class="meal-row"><div class="meal-time">${m.time}</div><div class="meal-info"><div class="meal-name">${m.name}</div><div class="meal-detail">${m.description}${m.tip?` · 💡 ${m.tip}`:''}</div></div><div class="meal-cals">${m.calories} cal</div></div>`});
+  html+='</div>';
+  html+=`<div class="card"><div class="card-title">Hydration</div><div style="font-size:15px">💧 ${n.hydration}</div></div>`;
+  if(n.supplements&&n.supplements.length){html+=`<div class="card"><div class="card-title">Recommended supplements</div>`;n.supplements.forEach(s=>{const[name,...rest]=s.split('—');html+=`<div style="padding:8px 0;border-bottom:.5px solid var(--border);font-size:14px"><span style="font-weight:500">${name.trim()}</span>${rest.length?' — '+rest.join('—'):''}`;html+='</div>'});html+='</div>'}
+  document.getElementById('nutrition-content').innerHTML=html;
+}
+
+function renderGrocery(){
+  const g=plan.grocery;if(!g)return;
+  let html='';
+  Object.entries(g).forEach(([cat,items])=>{
+    html+=`<div class="grocery-section"><div class="grocery-category">${cat}</div><div class="card" style="padding:12px 16px">`;
+    items.forEach((item,i)=>{
+      const key=cat+'-'+i,done=!!groceryChecked[key];
+      html+=`<div class="grocery-item"><div class="grocery-check${done?' done':''}" onclick="toggleGrocery('${key}',this)">${done?'✓':''}</div><div class="grocery-name${done?' done':''}">${item.name}</div><div class="grocery-qty">${item.qty}</div></div>`;
+    });
+    html+='</div></div>';
+  });
+  document.getElementById('grocery-content').innerHTML=html||'<div class="empty-state"><div class="empty-icon">🛒</div><div class="empty-title">No list yet</div></div>';
+}
+
+function toggleGrocery(key,el){
+  groceryChecked[key]=!groceryChecked[key];
+  el.classList.toggle('done',groceryChecked[key]);
+  el.textContent=groceryChecked[key]?'✓':'';
+  const nameEl=el.nextElementSibling;if(nameEl)nameEl.classList.toggle('done',groceryChecked[key]);
+  saveEnc(DATA_KEY,{profile,plan,groceryChecked});
+}
+function clearChecked(){groceryChecked={};renderGrocery();saveEnc(DATA_KEY,{profile,plan,groceryChecked})}
+
+function renderHealth(){
+  const h=plan.health;if(!h)return;
+  let html='';
+  if(h.keyMetrics&&h.keyMetrics.length){
+    html+='<div class="card"><div class="card-title">Your stats</div>';
+    h.keyMetrics.forEach(m=>{html+=`<div class="stat-row"><div><div class="stat-label">${m.label}</div>${m.note?`<div style="font-size:12px;color:var(--muted)">${m.note}</div>`:''}</div><div class="stat-val">${m.value}</div></div>`});
+    html+='</div>';
+  }
+  if(h.ageSpecific){html+=`<div class="alert-card tip" style="margin-bottom:12px"><div class="alert-icon">🎯</div><div class="alert-text"><div class="alert-title">For you at ${profile.age}</div>${h.ageSpecific}</div></div>`}
+  if(h.cycleAdvice&&profile.sex==='female'){const ca=typeof h.cycleAdvice==='object'?h.cycleAdvice:null;if(ca){html+=`<div class="card"><div class="card-title">Cycle phase: ${profile.cyclePhase}</div><div class="alert-card tip" style="margin:0 -4px"><div class="alert-icon">🌙</div><div class="alert-text"><div class="alert-title">Energy</div>${ca.energy||''}</div></div></div>`}}
+  if(h.watchouts&&h.watchouts.length){html+='<div style="font-size:17px;font-weight:700;margin:16px 0 10px">Watch out for</div>';h.watchouts.forEach(w=>{html+=`<div class="alert-card ${w.type||'info'}" style="margin-bottom:8px"><div class="alert-icon">${w.type==='warn'?'⚠️':w.type==='tip'?'💡':'ℹ️'}</div><div class="alert-text"><div class="alert-title">${w.title}</div>${w.body}</div></div>`})}
+  document.getElementById('health-content').innerHTML=html;
+}
+
+initPin();
+</script>
+</body>
+</html>
